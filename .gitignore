@@ -1,0 +1,10 @@
+# IDE
+.idea/
+.vscode/
+.vs/
+
+# .NET
+bin/
+obj/
+TestResults/
+*.exe
