@@ -29,6 +29,7 @@ namespace StreamCapturePro.Core.Extractors
             @"""timestamp""\s*:\s*""?(?<ts>\d+)""?",
             RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
+        // %APPDATA%\webcast_mate\logs
         private readonly string[] _logDirectories =
         [
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "webcast_mate", "logs"),
