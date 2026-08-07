@@ -6,7 +6,7 @@ namespace StreamCapturePro.Core.Utils
     public class ProcessScanOptionsService
     {
         private readonly object _syncRoot = new();
-        private string _keywordsText = "直播伴侣";
+        private string _keywordsText = "直播伴侣,kwailive,tiktok";
 
         public string KeywordsText
         {

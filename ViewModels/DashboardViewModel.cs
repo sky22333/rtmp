@@ -153,8 +153,8 @@ namespace StreamCapturePro.ViewModels
                 if (ReferenceEquals(_captureCts, cts))
                 {
                     _captureCts = null;
+                    IsCapturing = false;
                 }
-                IsCapturing = false;
             }
         }
 

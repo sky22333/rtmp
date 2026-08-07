@@ -304,24 +304,6 @@ namespace StreamCapturePro.Core.Extractors
             return false;
         }
 
-        private static bool TryExtractFromText(string text, out string server, out string key)
-        {
-            server = string.Empty;
-            key = string.Empty;
-
-            var urlMatches = UrlPattern.Matches(text);
-            for (var i = urlMatches.Count - 1; i >= 0; i--)
-            {
-                var rawUrl = DecodeEscapedUrl(urlMatches[i].Value);
-                if (TryBuildResultFromRtmpUrl(rawUrl, out server, out key))
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
         private static bool TryBuildResultFromRtmpUrl(string rawUrl, out string server, out string key)
         {
             server = string.Empty;
