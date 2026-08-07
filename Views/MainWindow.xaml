@@ -4,10 +4,9 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-        xmlns:pages="clr-namespace:StreamCapturePro.Views.Pages"
         xmlns:tb="http://www.hardcodet.net/taskbar"
         mc:Ignorable="d"
-        Title="推流码获取工具" Height="600" Width="900"
+        Title="推流码获取工具" Height="600" Width="720"
         Icon="pack://application:,,,/assets/logo.ico"
         WindowStartupLocation="CenterScreen"
         ExtendsContentIntoTitleBar="True"
@@ -20,24 +19,13 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <ui:TitleBar Grid.Row="0" Title="推流码获取工具 (StreamCapture)">
+        <ui:TitleBar Grid.Row="0" Title="推流码获取工具">
             <ui:TitleBar.Icon>
                 <ui:ImageIcon Source="pack://application:,,,/assets/logo.ico" Width="16" Height="16" />
             </ui:TitleBar.Icon>
         </ui:TitleBar>
 
-        <ui:NavigationView Grid.Row="1" x:Name="RootNavigation"
-                           PaneDisplayMode="LeftFluent"
-                           IsPaneOpen="False"
-                           IsPaneToggleVisible="False"
-                           IsBackButtonVisible="Collapsed">
-            <ui:NavigationView.MenuItems>
-                <ui:NavigationViewItem Content="仪表盘" Icon="{ui:SymbolIcon Home24}" TargetPageType="{x:Type pages:DashboardPage}" />
-            </ui:NavigationView.MenuItems>
-            <ui:NavigationView.FooterMenuItems>
-                <ui:NavigationViewItem Content="关于" Icon="{ui:SymbolIcon Info24}" TargetPageType="{x:Type pages:AboutPage}" />
-            </ui:NavigationView.FooterMenuItems>
-        </ui:NavigationView>
+        <ContentControl Grid.Row="1" x:Name="PageHost" />
 
         <tb:TaskbarIcon x:Name="TrayIcon"
                         Grid.Row="0"

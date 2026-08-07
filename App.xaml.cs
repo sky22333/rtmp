@@ -3,12 +3,10 @@ using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using StreamCapturePro.Core.Extractors;
 using StreamCapturePro.Core.Utils;
-using StreamCapturePro.Services;
 using StreamCapturePro.ViewModels;
 using StreamCapturePro.Views;
 using StreamCapturePro.Views.Pages;
 using Wpf.Ui;
-using Wpf.Ui.Abstractions;
 
 namespace StreamCapturePro
 {
@@ -20,10 +18,7 @@ namespace StreamCapturePro
         {
             var services = new ServiceCollection();
 
-            services.AddSingleton<INavigationViewPageProvider, PageService>();
-            services.AddSingleton<INavigationService, NavigationService>();
             services.AddSingleton<ISnackbarService, SnackbarService>();
-            services.AddSingleton<IThemeService, ThemeService>();
             services.AddSingleton<ObsSyncService>();
             services.AddSingleton<ProcessScanOptionsService>();
 
@@ -33,8 +28,6 @@ namespace StreamCapturePro
             services.AddSingleton<MainWindow>();
             services.AddTransient<DashboardPage>();
             services.AddTransient<DashboardViewModel>();
-            services.AddTransient<AboutPage>();
-            services.AddTransient<AboutViewModel>();
 
             return services.BuildServiceProvider();
         }

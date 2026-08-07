@@ -5,7 +5,6 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using Newtonsoft.Json.Linq;
 using StreamCapturePro.Core.Models;
 
 namespace StreamCapturePro.Core.Extractors
@@ -16,9 +15,9 @@ namespace StreamCapturePro.Core.Extractors
         private const int TailReadBytes = 1048576; // 1024 KB
         private const int PollingDelayMs = 1000;
         private const int MaxScanFiles = 5;
-        
+
         private static readonly Regex UrlPattern = new(
-            @"""url""\s*:\s*""(?<url>rtmp://[^""]+)""", 
+            @"""url""\s*:\s*""(?<url>rtmp://[^""]+)""",
             RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         private static readonly Regex KeyPattern = new(
@@ -197,7 +196,7 @@ namespace StreamCapturePro.Core.Extractors
                             {
                                 var embeddedKey = path[(markerIndex + 1)..];
                                 if (!string.IsNullOrEmpty(uri.Query)) embeddedKey += uri.Query;
-                                
+
                                 if (!embeddedKey.Contains(".m3u8") && !embeddedKey.Contains(".flv"))
                                 {
                                     key = embeddedKey;

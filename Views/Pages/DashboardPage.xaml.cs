@@ -1,10 +1,9 @@
 using System.Windows.Controls;
 using StreamCapturePro.ViewModels;
-using Wpf.Ui.Abstractions.Controls;
 
 namespace StreamCapturePro.Views.Pages
 {
-    public partial class DashboardPage : Page, INavigableView<DashboardViewModel>
+    public partial class DashboardPage : UserControl
     {
         public DashboardViewModel ViewModel { get; }
 
