@@ -1,4 +1,4 @@
-# 🚀 StreamCapture
+## StreamCapture
 
 一个基于 .NET 8 + WPF 的推流信息提取工具，轻量级 高性能，支持一键复制与同步 OBS。
 
