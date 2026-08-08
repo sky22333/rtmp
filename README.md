@@ -14,7 +14,10 @@
 5. 获取后可复制 Server/Key 或一键同步 OBS
 
 ## 预览
-![主界面](.github/demo.png)
+
+<div style="display:inline-block">
+<img src=".github/demo.png" alt="demo1" width="600">
+</div>
 
 ### 开发命令
 
