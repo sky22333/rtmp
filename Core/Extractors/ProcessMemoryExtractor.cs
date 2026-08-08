@@ -151,12 +151,10 @@ namespace StreamCapturePro.Core.Extractors
                     yield break;
                 }
 
-                // 推流 URL 由目标程序运行时生成，只可能存在于可写内存区；
-                // 跳过只读/可执行区，可减少 90% 以上的扫描量，且不影响提取结果。
                 var writable =
                     info.State == NativeMethods.MemoryState.Commit &&
                     (info.Protect & NativeMethods.MemoryProtection.Guard) == 0 &&
-                    (info.Protect & (NativeMethods.MemoryProtection.ReadWrite | NativeMethods.MemoryProtection.WriteCopy)) != 0;
+                    (info.Protect & (NativeMethods.MemoryProtection.ReadWrite | NativeMethods.MemoryProtection.WriteCopy | NativeMethods.MemoryProtection.ExecuteReadWrite | NativeMethods.MemoryProtection.ExecuteWriteCopy)) != 0;
 
                 if (writable && info.RegionSize > 0)
                 {
@@ -306,6 +304,11 @@ namespace StreamCapturePro.Core.Extractors
             if (string.IsNullOrWhiteSpace(rawUrl)) return false;
 
             if (!Uri.TryCreate(rawUrl, UriKind.Absolute, out var uri))
+            {
+                return false;
+            }
+
+            if (uri.IsLoopback)
             {
                 return false;
             }

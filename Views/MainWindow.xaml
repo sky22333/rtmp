@@ -40,6 +40,6 @@
             </tb:TaskbarIcon.ContextMenu>
         </tb:TaskbarIcon>
 
-        <ui:SnackbarPresenter x:Name="RootSnackbar" Grid.Row="1" VerticalAlignment="Bottom" HorizontalAlignment="Center"/>
+        <ui:SnackbarPresenter x:Name="RootSnackbar" Grid.Row="1" MaxWidth="480" VerticalAlignment="Bottom" HorizontalAlignment="Center"/>
     </Grid>
 </ui:FluentWindow>

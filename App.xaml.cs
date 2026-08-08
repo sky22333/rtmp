@@ -57,10 +57,13 @@ namespace StreamCapturePro
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"程序启动失败！\n错误信息：{ex.Message}\n堆栈：{ex.StackTrace}", "启动致命错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                ShowFatalError("程序启动失败", ex.Message);
                 Shutdown();
             }
         }
+
+        private static void ShowFatalError(string context, string message)
+            => MessageBox.Show($"{context}：\n{message}", "致命错误", MessageBoxButton.OK, MessageBoxImage.Error);
 
         private void OnExit(object sender, ExitEventArgs e)
         {
@@ -75,7 +78,7 @@ namespace StreamCapturePro
 
         private void App_DispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
         {
-            MessageBox.Show($"UI 线程发生严重错误：\n{e.Exception.Message}", "系统错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            ShowFatalError("UI 线程发生严重错误", e.Exception.Message);
             e.Handled = true;
         }
 
@@ -83,7 +86,7 @@ namespace StreamCapturePro
         {
             if (e.ExceptionObject is Exception ex)
             {
-                MessageBox.Show($"后台线程发生致命错误：\n{ex.Message}", "致命错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                ShowFatalError("后台线程发生致命错误", ex.Message);
             }
         }
     }

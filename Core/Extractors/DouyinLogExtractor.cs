@@ -190,6 +190,11 @@ namespace StreamCapturePro.Core.Extractors
 
                         if (Uri.TryCreate(rawUrl, UriKind.Absolute, out var uri))
                         {
+                            if (uri.IsLoopback)
+                            {
+                                return false;
+                            }
+
                             var path = uri.AbsolutePath;
                             var markerIndex = path.IndexOf("/stream-", StringComparison.OrdinalIgnoreCase);
                             if (markerIndex >= 0)

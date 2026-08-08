@@ -14,11 +14,11 @@
 5. 获取后可复制 Server/Key 或一键同步 OBS
 
 ## 预览
-![主界面](/assets/demo1.png)
+![主界面](.github/demo.png)
 
 ### 开发命令
 
-```bash
+```
 dotnet restore
 dotnet build
 dotnet run

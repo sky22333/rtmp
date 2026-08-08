@@ -76,7 +76,7 @@ namespace StreamCapturePro.ViewModels
             {
                 IsCapturing = false;
                 StatusText = "请先填写进程关键字再开始捕获。";
-                _snackbarService.Show("提示", "请先配置进程关键字，例如：直播伴侶", ControlAppearance.Caution, new SymbolIcon(SymbolRegular.Warning24), TimeSpan.FromSeconds(4));
+                ShowInfo("请先配置进程关键字，例如：直播伴侣。");
                 return;
             }
 
@@ -106,7 +106,7 @@ namespace StreamCapturePro.ViewModels
                             ServerAddress = result.Server;
                             StreamKey = result.Key;
                             StatusText = $"获取成功！来源：{result.Source.Replace("(", "[").Replace(")", "]")}";
-                            _snackbarService.Show("成功", "推流地址和密钥已获取完毕！", ControlAppearance.Success, new SymbolIcon(SymbolRegular.Checkmark24), TimeSpan.FromSeconds(3));
+                            ShowSuccess("推流地址和密钥已获取完毕。");
                             cts.Cancel();
                             return;
                         }
@@ -122,9 +122,8 @@ namespace StreamCapturePro.ViewModels
 
                 if (errors.Count > 0)
                 {
-                    var errorText = string.Join(Environment.NewLine, errors.Distinct());
                     StatusText = "提取失败，请检查日志或抓包环境。";
-                    _snackbarService.Show("错误", errorText, ControlAppearance.Danger, new SymbolIcon(SymbolRegular.ErrorCircle24), TimeSpan.FromSeconds(6));
+                    ShowError(errors.First());
                 }
                 else
                 {
@@ -136,7 +135,7 @@ namespace StreamCapturePro.ViewModels
                 if (timeoutCts.IsCancellationRequested && !cts.IsCancellationRequested)
                 {
                     StatusText = "等待命中超时，请确认已点击开播并重试。";
-                    _snackbarService.Show("超时", "90 秒内未捕获到有效推流信息，请确认直播伴侣已开播。", ControlAppearance.Caution, new SymbolIcon(SymbolRegular.Warning24), TimeSpan.FromSeconds(5));
+                    ShowInfo("90 秒内未捕获到有效推流信息，请确认直播伴侣已开播。");
                 }
                 else if (string.IsNullOrEmpty(ServerAddress))
                 {
@@ -146,7 +145,7 @@ namespace StreamCapturePro.ViewModels
             catch (Exception ex)
             {
                 StatusText = $"发生错误: {ex.Message}";
-                _snackbarService.Show("错误", ex.Message, ControlAppearance.Danger, new SymbolIcon(SymbolRegular.ErrorCircle24), TimeSpan.FromSeconds(5));
+                ShowError(ex.Message);
             }
             finally
             {
@@ -171,6 +170,15 @@ namespace StreamCapturePro.ViewModels
             }
         }
 
+        private void ShowInfo(string message)
+            => _snackbarService.Show("提示", message, ControlAppearance.Caution, new SymbolIcon(SymbolRegular.Warning24), TimeSpan.FromSeconds(5));
+
+        private void ShowSuccess(string message)
+            => _snackbarService.Show("成功", message, ControlAppearance.Success, new SymbolIcon(SymbolRegular.Checkmark24), TimeSpan.FromSeconds(3));
+
+        private void ShowError(string message)
+            => _snackbarService.Show("失败", message, ControlAppearance.Danger, new SymbolIcon(SymbolRegular.ErrorCircle24), TimeSpan.FromSeconds(5));
+
         partial void OnProcessKeywordsTextChanged(string value)
         {
             _processScanOptionsService.KeywordsText = value;
@@ -182,7 +190,7 @@ namespace StreamCapturePro.ViewModels
             if (!string.IsNullOrEmpty(ServerAddress))
             {
                 System.Windows.Clipboard.SetText(ServerAddress);
-                _snackbarService.Show("复制成功", "推流服务器地址已复制到剪贴板", ControlAppearance.Primary, new SymbolIcon(SymbolRegular.Copy24), TimeSpan.FromSeconds(2));
+                ShowSuccess("推流服务器地址已复制到剪贴板。");
             }
         }
 
@@ -192,7 +200,7 @@ namespace StreamCapturePro.ViewModels
             if (!string.IsNullOrEmpty(StreamKey))
             {
                 System.Windows.Clipboard.SetText(StreamKey);
-                _snackbarService.Show("复制成功", "推流密钥已复制到剪贴板", ControlAppearance.Primary, new SymbolIcon(SymbolRegular.Copy24), TimeSpan.FromSeconds(2));
+                ShowSuccess("推流密钥已复制到剪贴板。");
             }
         }
 
@@ -201,7 +209,7 @@ namespace StreamCapturePro.ViewModels
         {
             if (string.IsNullOrEmpty(ServerAddress) || string.IsNullOrEmpty(StreamKey))
             {
-                _snackbarService.Show("同步失败", "没有可用的推流信息，请先进行获取。", ControlAppearance.Danger, new SymbolIcon(SymbolRegular.ErrorCircle24), TimeSpan.FromSeconds(3));
+                ShowError("没有可用的推流信息，请先进行获取。");
                 return;
             }
 
@@ -210,11 +218,11 @@ namespace StreamCapturePro.ViewModels
 
             if (success)
             {
-                _snackbarService.Show("同步成功", "推流配置已成功写入 OBS Studio！重启 OBS 即可生效。", ControlAppearance.Success, new SymbolIcon(SymbolRegular.Checkmark24), TimeSpan.FromSeconds(5));
+                ShowSuccess("推流配置已成功写入 OBS Studio，重启 OBS 即可生效。");
             }
             else
             {
-                _snackbarService.Show("同步失败", "未找到 OBS 配置文件，请确认是否安装并运行过 OBS Studio。", ControlAppearance.Caution, new SymbolIcon(SymbolRegular.Warning24), TimeSpan.FromSeconds(5));
+                ShowError("未找到 OBS 配置文件，请确认是否安装并运行过 OBS Studio。");
             }
         }
     }
