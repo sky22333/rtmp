@@ -3,6 +3,8 @@ using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Net;
+using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -19,7 +21,11 @@ namespace StreamCapturePro.Core.Extractors
         private const int MaxProcesses = 8;
         private const int ReadChunkSize = 1048576; // 增加到 1MB 以减少 API 调用并降低被截断概率
         private const int MaxRegionBytes = 16 * 1024 * 1024; // 最大扫描区域
+        private const int MaxCandidates = 32;
         private static readonly Regex UrlPattern = new(@"rtmp://[^\s""'\x00\\]+", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static readonly Regex AuthParamPattern = new(
+            @"[?&](sign|sig|token|auth|auth_key|timestamp|expire|expires|secret|nonce|t|k)=",
+            RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         private static readonly byte[] RtmpUtf8 = Encoding.UTF8.GetBytes("rtmp://");
 
@@ -34,6 +40,8 @@ namespace StreamCapturePro.Core.Extractors
 
         public async Task<StreamInfo?> ExtractAsync(CancellationToken cancellationToken)
         {
+            var preferAuthCandidates = IsKwaiLiveTargeted();
+
             while (!cancellationToken.IsCancellationRequested)
             {
                 var keywords = _optionsService.GetKeywords();
@@ -49,7 +57,7 @@ namespace StreamCapturePro.Core.Extractors
 
                     try
                     {
-                        var result = ScanProcess(process, cancellationToken);
+                        var result = ScanProcess(process, preferAuthCandidates, cancellationToken);
                         if (result is { IsValid: true })
                         {
                             return result;
@@ -100,7 +108,7 @@ namespace StreamCapturePro.Core.Extractors
                 .ToList();
         }
 
-        private StreamInfo? ScanProcess(Process process, CancellationToken cancellationToken)
+        private StreamInfo? ScanProcess(Process process, bool preferAuthCandidates, CancellationToken cancellationToken)
         {
             var handle = NativeMethods.OpenProcess(
                 NativeMethods.ProcessAccessFlags.QueryInformation | NativeMethods.ProcessAccessFlags.VmRead,
@@ -114,23 +122,38 @@ namespace StreamCapturePro.Core.Extractors
 
             try
             {
+                var candidates = new List<StreamInfo>();
+                var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
                 foreach (var region in EnumerateWritableRegions(handle, cancellationToken))
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    var result = ScanRegion(handle, region, cancellationToken);
-                    if (result is { IsValid: true })
+                    CollectRegion(handle, region, seen, candidates, !preferAuthCandidates, cancellationToken);
+
+                    if (!preferAuthCandidates && candidates.Count > 0)
                     {
-                        result.Source = $"{ExtractorName} ({process.ProcessName})";
-                        return result;
+                        break;
+                    }
+                    if (candidates.Count >= MaxCandidates)
+                    {
+                        break;
                     }
                 }
+
+                var best = preferAuthCandidates
+                    ? candidates.FirstOrDefault(candidate => HasAuthParams(candidate.Key)) ?? candidates.FirstOrDefault()
+                    : candidates.FirstOrDefault();
+
+                if (best is not null)
+                {
+                    best.Source = $"{ExtractorName} ({process.ProcessName})";
+                }
+                return best;
             }
             finally
             {
                 NativeMethods.CloseHandle(handle);
             }
-
-            return null;
         }
 
         private static IEnumerable<(nuint BaseAddress, nuint RegionSize)> EnumerateWritableRegions(IntPtr processHandle, CancellationToken cancellationToken)
@@ -171,7 +194,7 @@ namespace StreamCapturePro.Core.Extractors
             }
         }
 
-        private StreamInfo? ScanRegion(IntPtr processHandle, (nuint BaseAddress, nuint RegionSize) region, CancellationToken cancellationToken)
+        private void CollectRegion(IntPtr processHandle, (nuint BaseAddress, nuint RegionSize) region, HashSet<string> seen, List<StreamInfo> candidates, bool stopAfterFirst, CancellationToken cancellationToken)
         {
             var total = (int)Math.Min((long)region.RegionSize, MaxRegionBytes);
             var offset = 0;
@@ -206,13 +229,10 @@ namespace StreamCapturePro.Core.Extractors
                         continue;
                     }
 
-                    if (TryExtractFromBuffer(buffer, size, out var server, out var key))
+                    CollectFromBuffer(buffer, size, seen, candidates, stopAfterFirst);
+                    if (stopAfterFirst && candidates.Count > 0)
                     {
-                        return new StreamInfo
-                        {
-                            Server = server,
-                            Key = key
-                        };
+                        break;
                     }
 
                     if (size > OverlapSize)
@@ -230,15 +250,10 @@ namespace StreamCapturePro.Core.Extractors
             {
                 ArrayPool<byte>.Shared.Return(buffer);
             }
-
-            return null;
         }
 
-        private static bool TryExtractFromBuffer(byte[] buffer, int bytesRead, out string server, out string key)
+        private void CollectFromBuffer(byte[] buffer, int bytesRead, HashSet<string> seen, List<StreamInfo> candidates, bool stopAfterFirst)
         {
-            server = string.Empty;
-            key = string.Empty;
-
             ReadOnlySpan<byte> span = new ReadOnlySpan<byte>(buffer, 0, bytesRead);
 
             // 分配一个可复用的字符缓冲区，避免循环内频繁 stackalloc 或 Rent
@@ -263,9 +278,10 @@ namespace StreamCapturePro.Core.Extractors
                     int charCount = Encoding.UTF8.GetChars(slice, charSpan);
                     var textSpan = charSpan.Slice(0, charCount);
 
-                    if (TryExtractFromTextSpan(textSpan, out server, out key))
+                    CollectFromTextSpan(textSpan, seen, candidates, stopAfterFirst);
+                    if (stopAfterFirst && candidates.Count > 0)
                     {
-                        return true;
+                        break;
                     }
 
                     offset = absoluteIndex + 1;
@@ -275,26 +291,38 @@ namespace StreamCapturePro.Core.Extractors
             {
                 ArrayPool<char>.Shared.Return(reusableCharBuffer);
             }
-
-            return false;
         }
 
-        private static bool TryExtractFromTextSpan(ReadOnlySpan<char> textSpan, out string server, out string key)
+        private void CollectFromTextSpan(ReadOnlySpan<char> textSpan, HashSet<string> seen, List<StreamInfo> candidates, bool stopAfterFirst)
         {
-            server = string.Empty;
-            key = string.Empty;
-
             foreach (var match in UrlPattern.EnumerateMatches(textSpan))
             {
                 var rawUrl = DecodeEscapedUrl(textSpan.Slice(match.Index, match.Length).ToString());
-                if (TryBuildResultFromRtmpUrl(rawUrl, out server, out key))
+                if (TryBuildResultFromRtmpUrl(rawUrl, out var server, out var key))
                 {
-                    return true;
+                    if (seen.Add($"{server}|{key}"))
+                    {
+                        candidates.Add(new StreamInfo { Server = server, Key = key });
+                        if (stopAfterFirst)
+                        {
+                            return;
+                        }
+                    }
                 }
             }
-
-            return false;
         }
+
+        private bool IsKwaiLiveTargeted()
+        {
+            var keywords = _optionsService.GetKeywords();
+            return keywords.Any(keyword =>
+                keyword.Contains("kwailive", StringComparison.OrdinalIgnoreCase) ||
+                keyword.Contains("kuaishou", StringComparison.OrdinalIgnoreCase) ||
+                keyword.Contains("快手", StringComparison.OrdinalIgnoreCase));
+        }
+
+        private static bool HasAuthParams(string key)
+            => AuthParamPattern.IsMatch(key);
 
         private static bool TryBuildResultFromRtmpUrl(string rawUrl, out string server, out string key)
         {
@@ -308,7 +336,7 @@ namespace StreamCapturePro.Core.Extractors
                 return false;
             }
 
-            if (uri.IsLoopback)
+            if (!IsPublicHost(uri.Host))
             {
                 return false;
             }
@@ -351,7 +379,7 @@ namespace StreamCapturePro.Core.Extractors
             key = string.Empty;
 
             var segments = uri.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
-            if (segments.Length == 0)
+            if (segments.Length < 2)
             {
                 return false;
             }
@@ -380,6 +408,37 @@ namespace StreamCapturePro.Core.Extractors
         private static string DecodeEscapedUrl(string value)
         {
             return value.Replace("\\/", "/", StringComparison.Ordinal);
+        }
+
+        private static bool IsPublicHost(string host)
+        {
+            if (!IPAddress.TryParse(host, out var ip))
+            {
+                return !string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase);
+            }
+            if (ip.IsIPv4MappedToIPv6)
+            {
+                ip = ip.MapToIPv4();
+            }
+            return !IPAddress.IsLoopback(ip) && !IsPrivateOrReservedIp(ip);
+        }
+
+        private static bool IsPrivateOrReservedIp(IPAddress ip)
+        {
+            if (ip.AddressFamily == AddressFamily.InterNetwork)
+            {
+                var b = ip.GetAddressBytes();
+                return b[0] == 0
+                    || b[0] == 10
+                    || b[0] >= 224
+                    || (b[0] == 172 && b[1] is >= 16 and <= 31)
+                    || (b[0] == 192 && b[1] == 168)
+                    || (b[0] == 169 && b[1] == 254)
+                    || (b[0] == 100 && b[1] is >= 64 and <= 127);
+            }
+
+            var v6 = ip.GetAddressBytes();
+            return v6[0] == 0xfc || v6[0] == 0xfd || (v6[0] == 0xfe && (v6[1] & 0xc0) == 0x80);
         }
 
         private static bool IsValidPushKey(string key)
