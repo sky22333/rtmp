@@ -4,10 +4,6 @@ using System.Net;
 
 namespace StreamCapturePro.Core.Utils
 {
-    /// <summary>
-    /// 直播伴侣内部接口返回的推流节点可能是内网专用域名（公网 DNS 无记录），
-    /// 这里将其替换为公网可解析的同族节点。
-    /// </summary>
     public static class PublicPushHostResolver
     {
         private const string InternalHost = "kspc.push.yximgs.com";
