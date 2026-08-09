@@ -103,7 +103,7 @@ namespace StreamCapturePro.ViewModels
                         var result = await completedTask;
                         if (result is { IsValid: true })
                         {
-                            ServerAddress = result.Server;
+                            ServerAddress = PublicPushHostResolver.Resolve(result.Server);
                             StreamKey = result.Key;
                             StatusText = $"获取成功！来源：{result.Source.Replace("(", "[").Replace(")", "]")}";
                             ShowSuccess("推流地址和密钥已获取完毕。");
