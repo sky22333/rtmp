@@ -51,22 +51,33 @@ namespace StreamCapturePro.Core.Extractors
                     continue;
                 }
 
-                foreach (var process in GetCandidateProcesses(keywords))
+                var processes = GetCandidateProcesses(keywords);
+                try
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
-
-                    try
+                    foreach (var process in processes)
                     {
-                        var result = ScanProcess(process, preferAuthCandidates, cancellationToken);
-                        if (result is { IsValid: true })
+                        cancellationToken.ThrowIfCancellationRequested();
+
+                        try
                         {
-                            return result;
+                            var result = ScanProcess(process, preferAuthCandidates, cancellationToken);
+                            if (result is { IsValid: true })
+                            {
+                                return result;
+                            }
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            throw;
+                        }
+                        catch
+                        {
                         }
                     }
-                    catch
-                    {
-                    }
-                    finally
+                }
+                finally
+                {
+                    foreach (var process in processes)
                     {
                         process.Dispose();
                     }
@@ -101,11 +112,13 @@ namespace StreamCapturePro.Core.Extractors
                 }
             }
 
-            return list
-                .OrderByDescending(item => item.StartTime)
-                .Take(MaxProcesses)
-                .Select(item => item.Process)
-                .ToList();
+            var ordered = list.OrderByDescending(item => item.StartTime).ToList();
+            foreach (var item in ordered.Skip(MaxProcesses))
+            {
+                item.Process.Dispose();
+            }
+
+            return ordered.Take(MaxProcesses).Select(item => item.Process).ToList();
         }
 
         private StreamInfo? ScanProcess(Process process, bool preferAuthCandidates, CancellationToken cancellationToken)
@@ -256,14 +269,17 @@ namespace StreamCapturePro.Core.Extractors
         {
             ReadOnlySpan<byte> span = new ReadOnlySpan<byte>(buffer, 0, bytesRead);
 
-            // 分配一个可复用的字符缓冲区，避免循环内频繁 stackalloc 或 Rent
+            // 大多数内存块不含 URL，无需为它们租用字符缓冲区。
+            int firstIndex = span.IndexOf(RtmpUtf8);
+            if (firstIndex < 0) return;
+
             char[]? reusableCharBuffer = ArrayPool<char>.Shared.Rent(4096);
             Span<char> charSpan = reusableCharBuffer.AsSpan();
 
             try
             {
                 // Search UTF8
-                int offset = 0;
+                int offset = firstIndex;
                 while (offset < bytesRead)
                 {
                     int index = span.Slice(offset).IndexOf(RtmpUtf8);

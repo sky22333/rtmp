@@ -28,6 +28,11 @@ namespace StreamCapturePro.ViewModels
         [ObservableProperty]
         private string _streamKey = string.Empty;
 
+        public bool HasResult => !string.IsNullOrEmpty(ServerAddress) && !string.IsNullOrEmpty(StreamKey);
+
+        partial void OnServerAddressChanged(string value) => OnPropertyChanged(nameof(HasResult));
+        partial void OnStreamKeyChanged(string value) => OnPropertyChanged(nameof(HasResult));
+
         [ObservableProperty]
         private bool _isCapturing = false;
 
@@ -60,7 +65,7 @@ namespace StreamCapturePro.ViewModels
             }
 
             IsCapturing = true;
-            StatusText = "正在监听推流信息，请在直播软件中点击【开始直播】...";
+            StatusText = "正在监听推流信息，请在直播软件中点击【开始直播】";
             ServerAddress = string.Empty;
             StreamKey = string.Empty;
 
@@ -120,7 +125,16 @@ namespace StreamCapturePro.ViewModels
                     }
                 }
 
-                if (errors.Count > 0)
+                if (timeoutCts.IsCancellationRequested && !cts.IsCancellationRequested)
+                {
+                    StatusText = "等待超时，请确认直播软件已开播后重试。";
+                    ShowInfo("90 秒内未获取到推流信息。");
+                }
+                else if (cts.IsCancellationRequested)
+                {
+                    StatusText = "获取已停止。";
+                }
+                else if (errors.Count > 0)
                 {
                     StatusText = "提取失败，请检查日志或抓包环境。";
                     ShowError(errors.First());
